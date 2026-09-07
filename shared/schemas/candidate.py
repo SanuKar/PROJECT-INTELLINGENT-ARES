@@ -1,12 +1,13 @@
 from pydantic import BaseModel
 from typing import List
 
-class Candidate_profile(BaseModel):
+
+class CandidateProfile(BaseModel):
     candidate_id: str
     first_name: str
     last_name: str
     email: str
-    phone_number: str
+    phone: str
     address: str
     skills: List[str]
     experience: List[str]
@@ -14,7 +15,8 @@ class Candidate_profile(BaseModel):
     certifications: List[str]
     projects: List[str]
 
-class Job_description(BaseModel):
+
+class JobDescription(BaseModel):
     job_id: str
     title: str
     company: str
@@ -23,21 +25,22 @@ class Job_description(BaseModel):
     required_skills: List[str]
     preferred_skills: List[str]
     required_qualifications: List[str]
-    experience_required: List[str]
+    experience_required: str
     responsibilities: List[str]
 
-class Retreival_result(BaseModel):
+
+class RetrievalResult(BaseModel):
     candidate_id: str
     job_id: str
-    match_skills:list[str]
-    missing_skills:list[str]
-    relevant_experience:list[str]
-    relevant_project:list[str]
+    matched_skills: List[str]
+    missing_skills: List[str]
+    relevant_experience: List[str]
+    relevant_projects: List[str]
     semantic_similarity: float
-    retreived_context: str
+    retrieved_context: List[str]
 
 
 class ScoringResult(BaseModel):
-    score: float
-    Explanation:dict[str, float]
+    user_score: float
+    explanation: dict[str, float]
     confidence: float
