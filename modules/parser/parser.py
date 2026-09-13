@@ -2,16 +2,23 @@
 ARES - Parsing & Cleaning Module
 Author: Bhargab
 Extracts and cleans text from resume PDFs (handles both text-based and scanned/OCR PDFs).
+Validates output against the shared ResumeDocument schema and saves results to disk.
 """
 
 import re
+import json
 import logging
 import uuid
+import sys
 from pathlib import Path
 
 import pdfplumber
 from pdf2image import convert_from_path
 import pytesseract
+
+# Allow importing from shared/schemas when running this file directly
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from shared.schemas.resume import ResumeDocument
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,10 +64,10 @@ def clean_text(raw_text: str) -> str:
     return text
 
 
-def parse_resume(pdf_path: str) -> tuple[dict, bool]:
+def parse_resume(pdf_path: str) -> tuple[ResumeDocument, bool]:
     """
-    Parse one resume PDF into the shared ResumeDocument shape.
-    Returns (document_dict, used_ocr) - used_ocr is for your own debugging,
+    Parse one resume PDF into a validated ResumeDocument.
+    Returns (document, used_ocr) - used_ocr is for your own debugging,
     not part of the shared schema.
     """
     native_text = extract_text_native(pdf_path)
@@ -75,18 +82,28 @@ def parse_resume(pdf_path: str) -> tuple[dict, bool]:
     cleaned = clean_text(raw_text)
     path = Path(pdf_path)
 
-    document = {
-        "resume_id": str(uuid.uuid4()),
-        "filename": path.name,
-        "file_type": path.suffix.lstrip(".").lower(),  # e.g. "pdf"
-        "raw_text": raw_text,
-        "cleaned_text": cleaned,
-    }
+    document = ResumeDocument(
+        resume_id=str(uuid.uuid4()),
+        filename=path.name,
+        file_type=path.suffix.lstrip(".").lower(),
+        raw_text=raw_text,
+        cleaned_text=cleaned,
+    )
     return document, used_ocr
+
+
+def save_document(document: ResumeDocument, output_dir: Path) -> Path:
+    """Save one parsed ResumeDocument as JSON, named by its resume_id."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / f"{document.resume_id}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(document.model_dump(), f, ensure_ascii=False, indent=2)
+    return out_path
 
 
 if __name__ == "__main__":
     test_folder = Path("data/parser_test")
+    output_folder = Path("data/parsed")
     pdf_files = sorted(test_folder.glob("*.pdf"))
 
     print(f"Found {len(pdf_files)} PDFs to test\n")
@@ -97,11 +114,15 @@ if __name__ == "__main__":
 
     for pdf_file in pdf_files:
         try:
-            result, used_ocr = parse_resume(str(pdf_file))
-            preview = result["cleaned_text"][:150].replace("\n", " ")
-            print(f"[OK] {result['filename']} | used_ocr={used_ocr}")
-            print(f"     Resume ID: {result['resume_id']}")
+            document, used_ocr = parse_resume(str(pdf_file))
+            out_path = save_document(document, output_folder)
+
+            preview = document.cleaned_text[:150].replace("\n", " ")
+            print(f"[OK] {document.filename} | used_ocr={used_ocr}")
+            print(f"     Resume ID: {document.resume_id}")
+            print(f"     Saved to: {out_path}")
             print(f"     Preview: {preview}...\n")
+
             ok_count += 1
             if used_ocr:
                 ocr_count += 1
@@ -111,3 +132,4 @@ if __name__ == "__main__":
 
     print("=" * 50)
     print(f"Summary: {ok_count} succeeded, {fail_count} failed, {ocr_count} used OCR")
+    print(f"Parsed documents saved to: {output_folder.resolve()}")
