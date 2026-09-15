@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+data/parsed/
+
+parser_run.log
+
+# Resume dataset
+data/raw_resumes/
